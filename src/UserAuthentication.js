@@ -1,4 +1,6 @@
 import './UserAuthentication.css';
+import ReactDOM from 'react-dom/client';
+import UserDashboard from './UserDashboard';
 
 function AuthPage() {
     return (
@@ -14,7 +16,7 @@ function AuthPage() {
                                 <td><input type = 'password' placeholder='Password' id = 'password-field'/></td>
                             </tr>
                             <tr>
-                                <td><input type = 'button' value = "Submit" onClick = {authenticateUser} id = 'submit-button' /></td>
+                                <td><input type = 'button' value = "Submit" onClick = {AuthenticateUser} id = 'submit-button' /></td>
                             </tr>
                         </table>
                     </center>
@@ -31,7 +33,8 @@ function AuthPage() {
     )
 }
 
-function authenticateUser() {
+function AuthenticateUser() {
+    const root = ReactDOM.createRoot(document.getElementById('root'));
     const request = {
         username: document.getElementById("username-field").value,
         password: document.getElementById("password-field").value
@@ -51,7 +54,9 @@ function authenticateUser() {
         if (data.result === "Failure") {
             alert("Invalid Credentials")
         } else {
-            alert("Login Successful")
+            root.render (
+                <UserDashboard username = {document.getElementById("username-field").value} />
+            )
         }
     })
 }
