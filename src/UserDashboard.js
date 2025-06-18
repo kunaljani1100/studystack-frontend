@@ -1,4 +1,5 @@
 import ReactDOM from 'react-dom/client';
+import { data } from 'react-router-dom';
 
 function UserDashboard(props) {
     const request = {
@@ -17,29 +18,69 @@ function UserDashboard(props) {
     })
     .then(data => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(
-            <div>
-                <h1>Gri</h1>
-                <UserInformation firstName = {data.firstName} lastName = {data.lastName} middleName = {data.middleName} groups = {data.groups}/>
-            </div>
-        )
+        if (data.groups.length !== 0) {
+            root.render(
+                <div>
+                    <UserInformation firstName = {data.firstName} lastName = {data.lastName} middleName = {data.middleName} groups = {data.groups}/>
+                </div>
+            )
+        } else {
+            root.render(
+                <div>
+                    <UserInformationWithoutData firstName = {data.firstName} lastName = {data.lastName} middleName = {data.middleName}/>
+                </div>
+            )
+        }
     })
+}
+
+function UserInformationWithoutData(props) {
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(
+        <div>
+            <h1>{props.firstName} {props.middleName} {props.lastName}</h1>
+            <p>Currently, you are not a part of any group!!!:</p>
+        </div>
+    )
 }
 
 function UserInformation(props) {
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    console.log(props.groups)
     root.render(
         <div>
             <h1>{props.firstName} {props.middleName} {props.lastName}</h1>
             <p>Groups you are a member of:</p>
             <p>
             {props.groups.map((group, index) => ( 
-                <p><button value = {group}>{group.split("::")[0]}</button></p>
+                <p><button value = {group} onClick={ViewQuestionsAsked({group})}>{group.split("::")[0]}</button></p>
             ))}
             </p>
         </div>
     )
+}
+
+function ViewQuestionsAsked(props) {
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    const request = {
+        groupId: props.group
+    }
+    const message = {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
+    }
+    fetch("http://localhost:8080/users/get", message)
+    .then(response => {
+        alert(response)
+        return response.json()
+    })
+    .then(data => {
+        root.render(
+            <div>Hello</div>
+        )
+    })
 }
 
 export default UserDashboard;
