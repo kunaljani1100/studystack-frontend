@@ -53,7 +53,7 @@ function UserDashboard({ username }) {
           fetch("http://localhost:8080/answers/batch", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ questionIds }),
+            body: JSON.stringify({ questionIds: questionIds }),
           })
             .then((res) => res.json())
             .then((answersData) => {
