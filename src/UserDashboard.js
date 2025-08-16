@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import './UserDashboard.css'; // New CSS file for styling
+import './UserDashboard.css'; // Keep the same CSS file
 
 function UserDashboard({ username }) {
   const [userInfo, setUserInfo] = useState(null);
-  const [groupQuestions, setGroupQuestions] = useState({}); // { groupId: [questions] }
-  const [answersByQuestion, setAnswersByQuestion] = useState({}); // { questionId: [answers] }
-  const [newQuestions, setNewQuestions] = useState({}); // text field per group
-  const [newAnswers, setNewAnswers] = useState({}); // text field per question
+  const [groupQuestions, setGroupQuestions] = useState({});
+  const [answersByQuestion, setAnswersByQuestion] = useState({});
+  const [newQuestions, setNewQuestions] = useState({});
+  const [newAnswers, setNewAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -20,7 +20,6 @@ function UserDashboard({ username }) {
       .then((data) => {
         setUserInfo(data);
         setLoading(false);
-
         if (Array.isArray(data.groups)) {
           data.groups.forEach((group) => {
             const [_, groupId] = String(group).split("::");
@@ -45,7 +44,6 @@ function UserDashboard({ username }) {
       .then((data) => {
         const questions = Array.isArray(data) ? data : data.questions || [];
         setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
-
         if (questions.length > 0) {
           const questionIds = questions.map((q) => q.questionId);
           fetch("http://localhost:8080/answers/batch", {
@@ -104,15 +102,24 @@ function UserDashboard({ username }) {
       .catch((err) => console.error("Failed to submit answer:", err));
   };
 
+  const handleLogout = () => {
+    window.location.href = "/"; // redirect to login page
+  };
+
   if (loading) return <p className="loading-text">Loading user info...</p>;
   if (error) return <p className="error-text">{error}</p>;
   if (!userInfo) return <p className="error-text">No user info found</p>;
 
   return (
     <div className="dashboard-container">
-      <h1 className="dashboard-title">
-        {userInfo.firstName} {userInfo.middleName} {userInfo.lastName}
-      </h1>
+      <div className="dashboard-header">
+        <h1 className="dashboard-title">
+          {userInfo.firstName} {userInfo.middleName} {userInfo.lastName}
+        </h1>
+        <button className="logout-button" onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
 
       <div className="groups-container">
         {userInfo.groups.map((group, idx) => {
@@ -123,7 +130,6 @@ function UserDashboard({ username }) {
             <div key={idx} className="group-card">
               <h2 className="group-title">{groupName}</h2>
 
-              {/* New question input */}
               <div className="new-question">
                 <input
                   type="text"
@@ -139,7 +145,6 @@ function UserDashboard({ username }) {
                 <button onClick={() => handleSubmitQuestion(groupId)}>Submit</button>
               </div>
 
-              {/* Questions and answers */}
               <div className="questions-list">
                 {questions.map((q) => (
                   <div key={q.questionId} className="question-card">
@@ -155,7 +160,6 @@ function UserDashboard({ username }) {
                       ))}
                     </ul>
 
-                    {/* Answer input */}
                     <div className="new-answer">
                       <input
                         type="text"
