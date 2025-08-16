@@ -9,6 +9,7 @@ function UserDashboard({ username }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fetch user info on mount
   useEffect(() => {
     fetch("http://localhost:8080/users/get", {
       method: "POST",
@@ -20,7 +21,7 @@ function UserDashboard({ username }) {
         setUserInfo(data);
         setLoading(false);
 
-        // automatically fetch questions for all groups
+        // fetch questions for each group
         if (Array.isArray(data.groups)) {
           data.groups.forEach((group) => {
             const [_, groupId] = String(group).split("::");
@@ -46,9 +47,6 @@ function UserDashboard({ username }) {
       .then((data) => {
         const questions = Array.isArray(data) ? data : data.questions || [];
         setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
-
-        // fetch answers for each question
-        questions.forEach((q) => fetchAnswers(q.questionId));
       })
       .catch((err) => {
         console.error("Failed to fetch questions:", err);
@@ -56,8 +54,10 @@ function UserDashboard({ username }) {
       });
   };
 
-  // Fetch answers for a question
+  // Fetch answers for a question (lazy-loaded)
   const fetchAnswers = (questionId) => {
+    if (answersByQuestion[questionId]) return; // already loaded
+
     fetch("http://localhost:8080/answer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -76,7 +76,7 @@ function UserDashboard({ username }) {
       });
   };
 
-  // Submit new question
+  // Submit a new question
   const handleSubmitQuestion = (groupId) => {
     const question = newQuestions[groupId]?.trim();
     if (!question) return;
@@ -89,29 +89,25 @@ function UserDashboard({ username }) {
       .then((res) => res.json())
       .then(() => {
         setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
-        fetchQuestions(groupId);
+        fetchQuestions(groupId); // refresh questions
       })
       .catch((err) => console.error("Failed to submit question:", err));
   };
 
-  // Submit new answer
+  // Submit a new answer
   const handleSubmitAnswer = (questionId) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
-    console.log("Submitting answer:", { username, questionId, answer });
 
     fetch("http://localhost:8080/answer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        username: username, 
-        questionId: questionId, 
-        answer: answer }),
+      body: JSON.stringify({ username, questionId, answer }),
     })
       .then((res) => res.json())
       .then(() => {
         setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
-        fetchAnswers(questionId);
+        fetchAnswers(questionId); // refresh answers
       })
       .catch((err) => console.error("Failed to submit answer:", err));
   };
@@ -135,6 +131,7 @@ function UserDashboard({ username }) {
             <li key={idx} style={{ marginBottom: "2rem" }}>
               <h3>{groupName}</h3>
 
+              {/* Ask new question */}
               <div style={{ marginTop: "0.5rem" }}>
                 <input
                   type="text"
@@ -153,45 +150,55 @@ function UserDashboard({ username }) {
                 </button>
               </div>
 
-              {questions.length > 0 &&
-                questions.map((q) => (
-                  <div
-                    key={q.questionId}
-                    style={{ marginTop: "1rem", paddingLeft: "1rem" }}
-                  >
-                    <strong>
-                      Question: {q.question} — {q.username}
-                    </strong>
+              {/* Display questions */}
+              {questions.map((q) => (
+                <div
+                  key={q.questionId}
+                  style={{ marginTop: "1rem", paddingLeft: "1rem" }}
+                >
+                  <strong>
+                    Question: {q.question} — {q.username}
+                  </strong>
 
-                    <ul style={{ marginLeft: "1rem" }}>
-                      {(answersByQuestion[q.questionId] || []).map(
-                        (ans, idx) => (
-                          <li key={idx}>
-                            {ans.answer} — {ans.username}
-                          </li>
-                        )
-                      )}
-                    </ul>
+                  {/* Lazy-load answers */}
+                  <ul style={{ marginLeft: "1rem" }}>
+                    {(answersByQuestion[q.questionId] || []).map((ans, idx) => (
+                      <li key={idx}>
+                        {ans.answer} — {ans.username}
+                      </li>
+                    ))}
+                  </ul>
 
-                    <div style={{ marginTop: "0.5rem" }}>
-                      <input
-                        type="text"
-                        placeholder="Answer this question"
-                        value={newAnswers[q.questionId] || ""}
-                        onChange={(e) =>
-                          setNewAnswers((prev) => ({
-                            ...prev,
-                            [q.questionId]: e.target.value,
-                          }))
-                        }
-                        style={{ marginRight: "0.5rem" }}
-                      />
-                      <button onClick={() => handleSubmitAnswer(q.questionId)}>
-                        Submit Answer
-                      </button>
-                    </div>
+                  {/* Fetch answers button */}
+                  {!answersByQuestion[q.questionId] && (
+                    <button
+                      onClick={() => fetchAnswers(q.questionId)}
+                      style={{ marginBottom: "0.5rem" }}
+                    >
+                      Load Answers
+                    </button>
+                  )}
+
+                  {/* Answer input */}
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Answer this question"
+                      value={newAnswers[q.questionId] || ""}
+                      onChange={(e) =>
+                        setNewAnswers((prev) => ({
+                          ...prev,
+                          [q.questionId]: e.target.value,
+                        }))
+                      }
+                      style={{ marginRight: "0.5rem" }}
+                    />
+                    <button onClick={() => handleSubmitAnswer(q.questionId)}>
+                      Submit Answer
+                    </button>
                   </div>
-                ))}
+                </div>
+              ))}
             </li>
           );
         })}
