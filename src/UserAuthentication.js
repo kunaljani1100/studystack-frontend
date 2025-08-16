@@ -1,64 +1,91 @@
 import './UserAuthentication.css';
-import ReactDOM from 'react-dom/client';
+import React, { useState } from 'react';
 import UserDashboard from './UserDashboard';
 
 function AuthPage() {
-    return (
-        <div className="UserAuth" id = "user-auth-page">
-                <center><h1>User Login Page</h1></center>
-                <form>
-                    <center>
-                        <table id = 'login-table'>
-                            <tr>
-                                <td><input type = 'text' placeholder='Username' id='username-field' /></td>
-                            </tr>
-                            <tr>
-                                <td><input type = 'password' placeholder='Password' id = 'password-field'/></td>
-                            </tr>
-                            <tr>
-                                <td><input type = 'button' value = "Submit" onClick = {AuthenticateUser} id = 'submit-button' /></td>
-                            </tr>
-                        </table>
-                    </center>
-                    <center>----------------OR----------------</center>
-                    <center>
-                        <table>
-                            <tr>
-                                <td>Forgot password?</td>
-                            </tr>
-                        </table>
-                    </center>
-                </form>
-        </div>
-    )
-}
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [authenticated, setAuthenticated] = useState(false);
 
-function AuthenticateUser() {
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    const request = {
-        username: document.getElementById("username-field").value,
-        password: document.getElementById("password-field").value
-    }
-    const message = {
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // prevent page reload
+
+    const request = { username, password };
+    try {
+      const response = await fetch("http://localhost:8080/users/authenticate", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(request)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+
+      const data = await response.json();
+
+      if (data.result === "Failure") {
+        alert("Invalid Credentials");
+      } else {
+        setAuthenticated(true);
+      }
+    } catch (err) {
+      console.error("Authentication failed", err);
     }
-    fetch("http://localhost:8080/users/authenticate", message)
-    .then(response => {
-        return response.json()
-    })
-    .then(data => {
-        if (data.result === "Failure") {
-            alert("Invalid Credentials")
-        } else {
-            root.render (
-                <UserDashboard username = {document.getElementById("username-field").value} />
-            )
-        }
-    })
+  };
+
+  if (authenticated) {
+    return <UserDashboard username={username} />;
+  }
+
+  return (
+    <div className="UserAuth" id="user-auth-page">
+      <h1 style={{ textAlign: 'center' }}>User Login Page</h1>
+      <form onSubmit={handleSubmit}>
+        <div style={{ textAlign: 'center' }}>
+          <table id="login-table">
+            <tbody>
+              <tr>
+                <td>
+                  <input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <button type="submit" id="submit-button">Submit</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ textAlign: 'center', margin: '1em 0' }}>
+          ----------------OR----------------
+        </div>
+
+        <div style={{ textAlign: 'center' }}>
+          <table>
+            <tbody>
+              <tr>
+                <td>Forgot password?</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export default AuthPage;
