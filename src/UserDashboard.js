@@ -47,6 +47,9 @@ function UserDashboard({ username }) {
       .then((data) => {
         const questions = Array.isArray(data) ? data : data.questions || [];
         setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
+
+        // Automatically fetch answers for all questions in this group
+        questions.forEach((q) => fetchAnswers(q.questionId));
       })
       .catch((err) => {
         console.error("Failed to fetch questions:", err);
@@ -54,7 +57,7 @@ function UserDashboard({ username }) {
       });
   };
 
-  // Fetch answers for a question (lazy-loaded)
+  // Fetch answers for a question
   const fetchAnswers = (questionId) => {
     if (answersByQuestion[questionId]) return; // already loaded
 
@@ -150,7 +153,7 @@ function UserDashboard({ username }) {
                 </button>
               </div>
 
-              {/* Display questions */}
+              {/* Display questions with answers */}
               {questions.map((q) => (
                 <div
                   key={q.questionId}
@@ -160,7 +163,6 @@ function UserDashboard({ username }) {
                     Question: {q.question} — {q.username}
                   </strong>
 
-                  {/* Lazy-load answers */}
                   <ul style={{ marginLeft: "1rem" }}>
                     {(answersByQuestion[q.questionId] || []).map((ans, idx) => (
                       <li key={idx}>
@@ -168,16 +170,6 @@ function UserDashboard({ username }) {
                       </li>
                     ))}
                   </ul>
-
-                  {/* Fetch answers button */}
-                  {!answersByQuestion[q.questionId] && (
-                    <button
-                      onClick={() => fetchAnswers(q.questionId)}
-                      style={{ marginBottom: "0.5rem" }}
-                    >
-                      Load Answers
-                    </button>
-                  )}
 
                   {/* Answer input */}
                   <div>
