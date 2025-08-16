@@ -1,35 +1,77 @@
-#user-auth-page {
-    width: 300px; /* this is needed */
-    height: 400px; /* this is needed */
-    padding: 10px; /* this is for styling only */
-    background: #ffffff; /* this is for styling only */
-    border: solid;
-
-    position: absolute; /* this is needed */
-    margin: auto; /* this is needed */
-    left: 0; /* this is needed */
-    right: 0; /* this is needed */
-    top: 0; /* this is needed */
-    bottom: 0; /* this is needed */
-}
-
-#username-field {
-    width: 250px;
-    height: 30px
-}
-
-#password-field {
-    width: 250px;
-    height: 30px
-}
-
-#submit-button {
-    width: 250px;
-    height: 30px;
-    color: white;
-    background-color: rgb(40, 161, 201);
-}
-
-#login-table {
-    border-spacing: 10px;
-}
+/* Container that centers the box */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f4f4f4;
+    font-family: Arial, sans-serif;
+  }
+  
+  /* Login box */
+  .auth-box {
+    background-color: #ffffff;
+    padding: 2rem 2.5rem;
+    border-radius: 8px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  
+  /* Title */
+  .auth-title {
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    color: #333;
+  }
+  
+  /* Input groups */
+  .input-group {
+    margin-bottom: 1rem;
+  }
+  
+  .input-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+  
+  /* Submit button */
+  .auth-submit {
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  
+  .auth-submit:hover {
+    background-color: #0056b3;
+  }
+  
+  /* OR separator */
+  .auth-or {
+    margin: 1.5rem 0;
+    color: #555;
+    font-size: 0.9rem;
+  }
+  
+  /* Links */
+  .auth-links a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  
+  .auth-links a:hover {
+    text-decoration: underline;
+  }
+  

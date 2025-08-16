@@ -1,8 +1,8 @@
-import './UserAuthentication.css';
 import React, { useState } from 'react';
+import './UserAuthentication.css';
 import UserDashboard from './UserDashboard';
 
-function AuthPage() {
+function UserAuthentication() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
@@ -35,57 +35,39 @@ function AuthPage() {
   }
 
   return (
-    <div className="UserAuth" id="user-auth-page">
-      <h1 style={{ textAlign: 'center' }}>User Login Page</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ textAlign: 'center' }}>
-          <table id="login-table">
-            <tbody>
-              <tr>
-                <td>
-                  <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <button type="submit" id="submit-button">Submit</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2 className="auth-title">Login</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="auth-submit">Login</button>
+        </form>
 
-        <div style={{ textAlign: 'center', margin: '1em 0' }}>
-          ----------------OR----------------
-        </div>
+        <div className="auth-or">----------------OR----------------</div>
 
-        <div style={{ textAlign: 'center' }}>
-          <table>
-            <tbody>
-              <tr>
-                <td>Forgot password?</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="auth-links">
+          <a href="/forgot-password">Forgot Password?</a>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
 
-export default AuthPage;
+export default UserAuthentication;
