@@ -9,7 +9,7 @@ function UserDashboard({ username }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch user info on mount
+  // Fetch user info
   useEffect(() => {
     fetch("http://localhost:8080/users/get", {
       method: "POST",
@@ -21,11 +21,10 @@ function UserDashboard({ username }) {
         setUserInfo(data);
         setLoading(false);
 
-        // fetch questions for each group
         if (Array.isArray(data.groups)) {
           data.groups.forEach((group) => {
             const [_, groupId] = String(group).split("::");
-            fetchQuestions(groupId);
+            fetchGroupData(groupId);
           });
         }
       })
@@ -36,8 +35,8 @@ function UserDashboard({ username }) {
       });
   }, [username]);
 
-  // Fetch questions for a group
-  const fetchQuestions = (groupId) => {
+  // Fetch questions and all answers for a group in a single batch
+  const fetchGroupData = (groupId) => {
     fetch("http://localhost:8080/groups/questions/view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,34 +47,28 @@ function UserDashboard({ username }) {
         const questions = Array.isArray(data) ? data : data.questions || [];
         setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
 
-        // Automatically fetch answers for all questions in this group
-        questions.forEach((q) => fetchAnswers(q.questionId));
+        // Batch fetch answers for all questions in this group
+        if (questions.length > 0) {
+          const questionIds = questions.map((q) => q.questionId);
+          fetch("http://localhost:8080/answers/batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ questionIds }),
+          })
+            .then((res) => res.json())
+            .then((answersData) => {
+              // answersData should be in format: { questionId: [answers] }
+              setAnswersByQuestion((prev) => ({
+                ...prev,
+                ...answersData,
+              }));
+            })
+            .catch((err) => console.error("Failed to fetch batch answers:", err));
+        }
       })
       .catch((err) => {
         console.error("Failed to fetch questions:", err);
         setGroupQuestions((prev) => ({ ...prev, [groupId]: [] }));
-      });
-  };
-
-  // Fetch answers for a question
-  const fetchAnswers = (questionId) => {
-    if (answersByQuestion[questionId]) return; // already loaded
-
-    fetch("http://localhost:8080/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAnswersByQuestion((prev) => ({
-          ...prev,
-          [questionId]: Array.isArray(data) ? data : [],
-        }));
-      })
-      .catch((err) => {
-        console.error("Failed to fetch answers:", err);
-        setAnswersByQuestion((prev) => ({ ...prev, [questionId]: [] }));
       });
   };
 
@@ -92,15 +85,17 @@ function UserDashboard({ username }) {
       .then((res) => res.json())
       .then(() => {
         setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
-        fetchQuestions(groupId); // refresh questions
+        fetchGroupData(groupId); // Refresh questions and answers for this group
       })
       .catch((err) => console.error("Failed to submit question:", err));
   };
 
-  // Submit a new answer
+  // Submit a new answer (optimistic)
   const handleSubmitAnswer = (questionId) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
+
+    setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
 
     fetch("http://localhost:8080/answer", {
       method: "POST",
@@ -109,8 +104,10 @@ function UserDashboard({ username }) {
     })
       .then((res) => res.json())
       .then(() => {
-        setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
-        fetchAnswers(questionId); // refresh answers
+        setAnswersByQuestion((prev) => ({
+          ...prev,
+          [questionId]: [...(prev[questionId] || []), { username, answer }],
+        }));
       })
       .catch((err) => console.error("Failed to submit answer:", err));
   };
@@ -164,11 +161,13 @@ function UserDashboard({ username }) {
                   </strong>
 
                   <ul style={{ marginLeft: "1rem" }}>
-                    {(answersByQuestion[q.questionId] || []).map((ans, idx) => (
-                      <li key={idx}>
-                        {ans.answer} — {ans.username}
-                      </li>
-                    ))}
+                    {(answersByQuestion[q.questionId] || []).map(
+                      (ans, idx) => (
+                        <li key={idx}>
+                          {ans.answer} — {ans.username}
+                        </li>
+                      )
+                    )}
                   </ul>
 
                   {/* Answer input */}
