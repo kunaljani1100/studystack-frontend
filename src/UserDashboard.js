@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import './UserDashboard.css'; // New CSS file for styling
 
 function UserDashboard({ username }) {
   const [userInfo, setUserInfo] = useState(null);
@@ -9,7 +10,6 @@ function UserDashboard({ username }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch user info
   useEffect(() => {
     fetch("http://localhost:8080/users/get", {
       method: "POST",
@@ -35,7 +35,6 @@ function UserDashboard({ username }) {
       });
   }, [username]);
 
-  // Fetch questions and all answers for a group in a single batch
   const fetchGroupData = (groupId) => {
     fetch("http://localhost:8080/groups/questions/view", {
       method: "POST",
@@ -47,21 +46,16 @@ function UserDashboard({ username }) {
         const questions = Array.isArray(data) ? data : data.questions || [];
         setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
 
-        // Batch fetch answers for all questions in this group
         if (questions.length > 0) {
           const questionIds = questions.map((q) => q.questionId);
           fetch("http://localhost:8080/answers/batch", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ questionIds: questionIds }),
+            body: JSON.stringify({ questionIds }),
           })
             .then((res) => res.json())
             .then((answersData) => {
-              // answersData should be in format: { questionId: [answers] }
-              setAnswersByQuestion((prev) => ({
-                ...prev,
-                ...answersData,
-              }));
+              setAnswersByQuestion((prev) => ({ ...prev, ...answersData }));
             })
             .catch((err) => console.error("Failed to fetch batch answers:", err));
         }
@@ -72,7 +66,6 @@ function UserDashboard({ username }) {
       });
   };
 
-  // Submit a new question
   const handleSubmitQuestion = (groupId) => {
     const question = newQuestions[groupId]?.trim();
     if (!question) return;
@@ -85,12 +78,11 @@ function UserDashboard({ username }) {
       .then((res) => res.json())
       .then(() => {
         setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
-        fetchGroupData(groupId); // Refresh questions and answers for this group
+        fetchGroupData(groupId);
       })
       .catch((err) => console.error("Failed to submit question:", err));
   };
 
-  // Submit a new answer (optimistic)
   const handleSubmitAnswer = (questionId) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
@@ -112,27 +104,27 @@ function UserDashboard({ username }) {
       .catch((err) => console.error("Failed to submit answer:", err));
   };
 
-  if (loading) return <p>Loading user info...</p>;
-  if (error) return <p>{error}</p>;
-  if (!userInfo) return <p>No user info found</p>;
+  if (loading) return <p className="loading-text">Loading user info...</p>;
+  if (error) return <p className="error-text">{error}</p>;
+  if (!userInfo) return <p className="error-text">No user info found</p>;
 
   return (
-    <div>
-      <h1>
+    <div className="dashboard-container">
+      <h1 className="dashboard-title">
         {userInfo.firstName} {userInfo.middleName} {userInfo.lastName}
       </h1>
-      <h2>Groups:</h2>
-      <ol>
+
+      <div className="groups-container">
         {userInfo.groups.map((group, idx) => {
           const [groupName, groupId] = String(group).split("::");
           const questions = groupQuestions[groupId] || [];
 
           return (
-            <li key={idx} style={{ marginBottom: "2rem" }}>
-              <h3>{groupName}</h3>
+            <div key={idx} className="group-card">
+              <h2 className="group-title">{groupName}</h2>
 
-              {/* Ask new question */}
-              <div style={{ marginTop: "0.5rem" }}>
+              {/* New question input */}
+              <div className="new-question">
                 <input
                   type="text"
                   placeholder={`Ask a question in ${groupName}`}
@@ -143,57 +135,48 @@ function UserDashboard({ username }) {
                       [groupId]: e.target.value,
                     }))
                   }
-                  style={{ marginRight: "0.5rem" }}
                 />
-                <button onClick={() => handleSubmitQuestion(groupId)}>
-                  Submit Question
-                </button>
+                <button onClick={() => handleSubmitQuestion(groupId)}>Submit</button>
               </div>
 
-              {/* Display questions with answers */}
-              {questions.map((q) => (
-                <div
-                  key={q.questionId}
-                  style={{ marginTop: "1rem", paddingLeft: "1rem" }}
-                >
-                  <strong>
-                    Question: {q.question} — {q.username}
-                  </strong>
+              {/* Questions and answers */}
+              <div className="questions-list">
+                {questions.map((q) => (
+                  <div key={q.questionId} className="question-card">
+                    <div className="question-text">
+                      <strong>{q.question}</strong> — {q.username}
+                    </div>
 
-                  <ul style={{ marginLeft: "1rem" }}>
-                    {(answersByQuestion[q.questionId] || []).map(
-                      (ans, idx) => (
-                        <li key={idx}>
+                    <ul className="answers-list">
+                      {(answersByQuestion[q.questionId] || []).map((ans, i) => (
+                        <li key={i}>
                           {ans.answer} — {ans.username}
                         </li>
-                      )
-                    )}
-                  </ul>
+                      ))}
+                    </ul>
 
-                  {/* Answer input */}
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Answer this question"
-                      value={newAnswers[q.questionId] || ""}
-                      onChange={(e) =>
-                        setNewAnswers((prev) => ({
-                          ...prev,
-                          [q.questionId]: e.target.value,
-                        }))
-                      }
-                      style={{ marginRight: "0.5rem" }}
-                    />
-                    <button onClick={() => handleSubmitAnswer(q.questionId)}>
-                      Submit Answer
-                    </button>
+                    {/* Answer input */}
+                    <div className="new-answer">
+                      <input
+                        type="text"
+                        placeholder="Answer this question"
+                        value={newAnswers[q.questionId] || ""}
+                        onChange={(e) =>
+                          setNewAnswers((prev) => ({
+                            ...prev,
+                            [q.questionId]: e.target.value,
+                          }))
+                        }
+                      />
+                      <button onClick={() => handleSubmitAnswer(q.questionId)}>Submit</button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </li>
+                ))}
+              </div>
+            </div>
           );
         })}
-      </ol>
+      </div>
     </div>
   );
 }
