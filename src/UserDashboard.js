@@ -179,11 +179,14 @@ const handleCreateGroup = async () => {
       <div className="create-group">
         <input
           type="text"
+          className="input-text"   // ✅ add a shared input style
           placeholder="Enter new group name"
           value={newGroupName}
           onChange={(e) => setNewGroupName(e.target.value)}
         />
-        <button onClick={handleCreateGroup}>Create & Join Group</button>
+        <button className="logout-button" onClick={handleCreateGroup}>
+          Create & Join Group
+        </button>
       </div>
 
       <div className="groups-container">

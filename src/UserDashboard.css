@@ -1,3 +1,17 @@
+.input-text {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-right: 10px;
+}
+
+.input-text:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 4px rgba(0, 123, 255, 0.4);
+}
+
 .dashboard-container {
   max-width: 900px;
   margin: 2rem auto;
