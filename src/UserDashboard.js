@@ -7,11 +7,11 @@ function UserDashboard({ username }) {
   const [answersByQuestion, setAnswersByQuestion] = useState({});
   const [newQuestions, setNewQuestions] = useState({});
   const [newAnswers, setNewAnswers] = useState({});
-  const [newGroupName, setNewGroupName] = useState(""); // 🔹 For group creation
+  const [newGroupName, setNewGroupName] = useState("");
+  const [addUserInputs, setAddUserInputs] = useState({}); // 🔹 Store input per group
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 1️⃣ Fetch user info once on mount
   const fetchUserInfo = async () => {
     try {
       const res = await fetch("http://localhost:8080/users/get", {
@@ -21,7 +21,6 @@ function UserDashboard({ username }) {
       });
       const data = await res.json();
 
-      // Remove duplicates just in case
       const uniqueGroups = data.groups ? [...new Set(data.groups)] : [];
       setUserInfo({ ...data, groups: uniqueGroups });
       setLoading(false);
@@ -36,7 +35,6 @@ function UserDashboard({ username }) {
     fetchUserInfo();
   }, [username]);
 
-  // 2️⃣ Fetch questions for all groups whenever userInfo.groups changes
   useEffect(() => {
     if (!userInfo || !userInfo.groups) return;
 
@@ -46,7 +44,6 @@ function UserDashboard({ username }) {
     });
   }, [userInfo]);
 
-  // Fetch questions and batch answers for a group
   const fetchGroupData = async (groupId) => {
     try {
       const res = await fetch("http://localhost:8080/groups/questions/view", {
@@ -58,7 +55,6 @@ function UserDashboard({ username }) {
       const questions = Array.isArray(data) ? data : data.questions || [];
       setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
 
-      // Batch fetch answers
       if (questions.length > 0) {
         const questionIds = questions.map((q) => q.questionId);
         const ansRes = await fetch("http://localhost:8080/answers/batch", {
@@ -75,7 +71,6 @@ function UserDashboard({ username }) {
     }
   };
 
-  // Submit a new question
   const handleSubmitQuestion = async (groupId) => {
     const question = newQuestions[groupId]?.trim();
     if (!question) return;
@@ -87,13 +82,12 @@ function UserDashboard({ username }) {
         body: JSON.stringify({ username, groupId, question }),
       });
       setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
-      fetchGroupData(groupId); // refresh questions
+      fetchGroupData(groupId);
     } catch (err) {
       console.error("Failed to submit question:", err);
     }
   };
 
-  // Submit a new answer
   const handleSubmitAnswer = async (questionId) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
@@ -115,49 +109,55 @@ function UserDashboard({ username }) {
     }
   };
 
-  // 🔹 Create a new group and auto-join the user
-  // 🔹 Create a new group and auto-join the user
-const handleCreateGroup = async () => {
-  const groupName = newGroupName.trim();
-  if (!groupName) return;
+  const handleCreateGroup = async () => {
+    const groupName = newGroupName.trim();
+    if (!groupName) return;
 
-  try {
-    // Step 1: Create the group and get its ID
-    const res = await fetch("http://localhost:8080/groups/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupName }),
-    });
-    const createdGroup = await res.json();
+    try {
+      const res = await fetch("http://localhost:8080/groups/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupName }),
+      });
+      const createdGroup = await res.json();
+      const groupId = createdGroup.groupId || createdGroup.id;
 
-    // Expect backend returns full "GroupName::Timestamp" format
-    const groupId = createdGroup.groupId || createdGroup.id;
+      if (groupId) {
+        await fetch("http://localhost:8080/groups/users/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ groupId, username }),
+        });
+      }
 
-    if (groupId) {
-      // Step 2: Auto join user
+      setNewGroupName("");
+      await fetchUserInfo();
+    } catch (err) {
+      console.error("Failed to create or join group:", err);
+    }
+  };
+
+  // 🔹 Add new user to a group
+  const handleAddUser = async (groupId) => {
+    const newUser = addUserInputs[groupId]?.trim();
+    if (!newUser) return;
+
+    try {
       await fetch("http://localhost:8080/groups/users/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          groupId, // use the fresh groupId
-          username,
-        }),
+        body: JSON.stringify({ groupId, username: newUser }),
       });
+      setAddUserInputs((prev) => ({ ...prev, [groupId]: "" }));
+      alert(`User "${newUser}" added to group successfully.`);
+    } catch (err) {
+      console.error("Failed to add user:", err);
+      alert("Failed to add user. See console for details.");
     }
-
-    setNewGroupName(""); // clear input
-
-    // Step 3: Refresh user info after join
-    await fetchUserInfo();
-
-  } catch (err) {
-    console.error("Failed to create or join group:", err);
-  }
-};
-
+  };
 
   const handleLogout = () => {
-    window.location.href = "/"; // redirect to login
+    window.location.href = "/";
   };
 
   if (loading) return <p className="loading-text">Loading user info...</p>;
@@ -175,11 +175,10 @@ const handleCreateGroup = async () => {
         </button>
       </div>
 
-      {/* 🔹 Create Group Section */}
       <div className="create-group">
         <input
           type="text"
-          className="input-text"   // ✅ add a shared input style
+          className="input-text"
           placeholder="Enter new group name"
           value={newGroupName}
           onChange={(e) => setNewGroupName(e.target.value)}
@@ -197,6 +196,22 @@ const handleCreateGroup = async () => {
           return (
             <div key={idx} className="group-card">
               <h2 className="group-title">{groupName}</h2>
+
+              {/* 🔹 Add User Section */}
+              <div className="add-user">
+                <input
+                  type="text"
+                  placeholder="Enter username to add"
+                  value={addUserInputs[String(group)] || ""}
+                  onChange={(e) =>
+                    setAddUserInputs((prev) => ({
+                      ...prev,
+                      [String(group)]: e.target.value,
+                    }))
+                  }
+                />
+                <button onClick={() => handleAddUser(String(group))}>Add User</button>
+              </div>
 
               <div className="new-question">
                 <input
