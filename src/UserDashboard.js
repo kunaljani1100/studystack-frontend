@@ -7,6 +7,7 @@ function UserDashboard({ username }) {
   const [answersByQuestion, setAnswersByQuestion] = useState({});
   const [newQuestions, setNewQuestions] = useState({});
   const [newAnswers, setNewAnswers] = useState({});
+  const [newGroupName, setNewGroupName] = useState({}); // 🔹 New state for group creation
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -114,6 +115,37 @@ function UserDashboard({ username }) {
     }
   };
 
+  // 🔹 Create a new group
+  const handleCreateGroup = async () => {
+    const groupName = newGroupName.trim();
+    console.log("Creating group:", groupName);
+
+    if (!groupName) return;
+
+    try {
+      await fetch("http://localhost:8080/groups/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupName: groupName }),
+      });
+
+      setNewGroupName(""); // clear input
+
+      // Refresh user info to show new group
+      const res = await fetch("http://localhost:8080/users/get", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+      const updatedData = await res.json();
+      const uniqueGroups = updatedData.groups ? [...new Set(updatedData.groups)] : [];
+      setUserInfo({ ...updatedData, groups: uniqueGroups });
+
+    } catch (err) {
+      console.error("Failed to create group:", err);
+    }
+  };
+
   const handleLogout = () => {
     window.location.href = "/"; // redirect to login
   };
@@ -131,6 +163,17 @@ function UserDashboard({ username }) {
         <button className="logout-button" onClick={handleLogout}>
           Logout
         </button>
+      </div>
+
+      {/* 🔹 Create Group Section */}
+      <div className="create-group">
+        <input
+          type="text"
+          placeholder="Enter new group name"
+          value={newGroupName}
+          onChange={(e) => setNewGroupName(e.target.value)}
+        />
+        <button onClick={handleCreateGroup}>Create Group</button>
       </div>
 
       <div className="groups-container">
