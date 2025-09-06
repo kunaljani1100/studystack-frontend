@@ -7,32 +7,32 @@ function UserDashboard({ username }) {
   const [answersByQuestion, setAnswersByQuestion] = useState({});
   const [newQuestions, setNewQuestions] = useState({});
   const [newAnswers, setNewAnswers] = useState({});
-  const [newGroupName, setNewGroupName] = useState({}); // 🔹 New state for group creation
+  const [newGroupName, setNewGroupName] = useState(""); // 🔹 For group creation
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // 1️⃣ Fetch user info once on mount
+  const fetchUserInfo = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/users/get", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+      const data = await res.json();
+
+      // Remove duplicates just in case
+      const uniqueGroups = data.groups ? [...new Set(data.groups)] : [];
+      setUserInfo({ ...data, groups: uniqueGroups });
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to load user info:", err);
+      setError("Failed to load user info");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const res = await fetch("http://localhost:8080/users/get", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username }),
-        });
-        const data = await res.json();
-
-        // Remove duplicates just in case
-        const uniqueGroups = data.groups ? [...new Set(data.groups)] : [];
-        setUserInfo({ ...data, groups: uniqueGroups });
-        setLoading(false);
-      } catch (err) {
-        console.error("Failed to load user info:", err);
-        setError("Failed to load user info");
-        setLoading(false);
-      }
-    };
-
     fetchUserInfo();
   }, [username]);
 
@@ -58,7 +58,7 @@ function UserDashboard({ username }) {
       const questions = Array.isArray(data) ? data : data.questions || [];
       setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
 
-      // Batch fetch answers for all questions in this group
+      // Batch fetch answers
       if (questions.length > 0) {
         const questionIds = questions.map((q) => q.questionId);
         const ansRes = await fetch("http://localhost:8080/answers/batch", {
@@ -93,7 +93,7 @@ function UserDashboard({ username }) {
     }
   };
 
-  // Submit a new answer (optimistic update)
+  // Submit a new answer
   const handleSubmitAnswer = async (questionId) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
@@ -115,36 +115,46 @@ function UserDashboard({ username }) {
     }
   };
 
-  // 🔹 Create a new group
-  const handleCreateGroup = async () => {
-    const groupName = newGroupName.trim();
-    console.log("Creating group:", groupName);
+  // 🔹 Create a new group and auto-join the user
+  // 🔹 Create a new group and auto-join the user
+const handleCreateGroup = async () => {
+  const groupName = newGroupName.trim();
+  if (!groupName) return;
 
-    if (!groupName) return;
+  try {
+    // Step 1: Create the group and get its ID
+    const res = await fetch("http://localhost:8080/groups/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupName }),
+    });
+    const createdGroup = await res.json();
 
-    try {
-      await fetch("http://localhost:8080/groups/create", {
+    // Expect backend returns full "GroupName::Timestamp" format
+    const groupId = createdGroup.groupId || createdGroup.id;
+
+    if (groupId) {
+      // Step 2: Auto join user
+      await fetch("http://localhost:8080/groups/users/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupName: groupName }),
+        body: JSON.stringify({
+          groupId, // use the fresh groupId
+          username,
+        }),
       });
-
-      setNewGroupName(""); // clear input
-
-      // Refresh user info to show new group
-      const res = await fetch("http://localhost:8080/users/get", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const updatedData = await res.json();
-      const uniqueGroups = updatedData.groups ? [...new Set(updatedData.groups)] : [];
-      setUserInfo({ ...updatedData, groups: uniqueGroups });
-
-    } catch (err) {
-      console.error("Failed to create group:", err);
     }
-  };
+
+    setNewGroupName(""); // clear input
+
+    // Step 3: Refresh user info after join
+    await fetchUserInfo();
+
+  } catch (err) {
+    console.error("Failed to create or join group:", err);
+  }
+};
+
 
   const handleLogout = () => {
     window.location.href = "/"; // redirect to login
@@ -173,7 +183,7 @@ function UserDashboard({ username }) {
           value={newGroupName}
           onChange={(e) => setNewGroupName(e.target.value)}
         />
-        <button onClick={handleCreateGroup}>Create Group</button>
+        <button onClick={handleCreateGroup}>Create & Join Group</button>
       </div>
 
       <div className="groups-container">
