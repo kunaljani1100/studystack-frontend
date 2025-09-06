@@ -10,100 +10,112 @@ function UserDashboard({ username }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // 1️⃣ Fetch user info once on mount
   useEffect(() => {
-    fetch("http://localhost:8080/users/get", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setUserInfo(data);
+    const fetchUserInfo = async () => {
+      try {
+        const res = await fetch("http://localhost:8080/users/get", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username }),
+        });
+        const data = await res.json();
+
+        // Remove duplicates just in case
+        const uniqueGroups = data.groups ? [...new Set(data.groups)] : [];
+        setUserInfo({ ...data, groups: uniqueGroups });
         setLoading(false);
-        if (Array.isArray(data.groups)) {
-          data.groups.forEach((group) => {
-            const [_, groupId] = String(group).split("::");
-            fetchGroupData(groupId);
-          });
-        }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Failed to load user info:", err);
         setError("Failed to load user info");
         setLoading(false);
-      });
+      }
+    };
+
+    fetchUserInfo();
   }, [username]);
 
-  const fetchGroupData = (groupId) => {
-    fetch("http://localhost:8080/groups/questions/view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupId }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const questions = Array.isArray(data) ? data : data.questions || [];
-        setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
-        if (questions.length > 0) {
-          const questionIds = questions.map((q) => q.questionId);
-          fetch("http://localhost:8080/answers/batch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ questionIds }),
-          })
-            .then((res) => res.json())
-            .then((answersData) => {
-              setAnswersByQuestion((prev) => ({ ...prev, ...answersData }));
-            })
-            .catch((err) => console.error("Failed to fetch batch answers:", err));
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch questions:", err);
-        setGroupQuestions((prev) => ({ ...prev, [groupId]: [] }));
+  // 2️⃣ Fetch questions for all groups whenever userInfo.groups changes
+  useEffect(() => {
+    if (!userInfo || !userInfo.groups) return;
+
+    userInfo.groups.forEach((group) => {
+      const [_, groupId] = String(group).split("::");
+      fetchGroupData(groupId);
+    });
+  }, [userInfo]);
+
+  // Fetch questions and batch answers for a group
+  const fetchGroupData = async (groupId) => {
+    try {
+      const res = await fetch("http://localhost:8080/groups/questions/view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId }),
       });
+      const data = await res.json();
+      const questions = Array.isArray(data) ? data : data.questions || [];
+      setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
+
+      // Batch fetch answers for all questions in this group
+      if (questions.length > 0) {
+        const questionIds = questions.map((q) => q.questionId);
+        const ansRes = await fetch("http://localhost:8080/answers/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questionIds }),
+        });
+        const answersData = await ansRes.json();
+        setAnswersByQuestion((prev) => ({ ...prev, ...answersData }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch questions or answers:", err);
+      setGroupQuestions((prev) => ({ ...prev, [groupId]: [] }));
+    }
   };
 
-  const handleSubmitQuestion = (groupId) => {
+  // Submit a new question
+  const handleSubmitQuestion = async (groupId) => {
     const question = newQuestions[groupId]?.trim();
     if (!question) return;
 
-    fetch("http://localhost:8080/question", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, groupId, question }),
-    })
-      .then((res) => res.json())
-      .then(() => {
-        setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
-        fetchGroupData(groupId);
-      })
-      .catch((err) => console.error("Failed to submit question:", err));
+    try {
+      await fetch("http://localhost:8080/question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, groupId, question }),
+      });
+      setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
+      fetchGroupData(groupId); // refresh questions
+    } catch (err) {
+      console.error("Failed to submit question:", err);
+    }
   };
 
-  const handleSubmitAnswer = (questionId) => {
+  // Submit a new answer (optimistic update)
+  const handleSubmitAnswer = async (questionId) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
 
     setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
 
-    fetch("http://localhost:8080/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, questionId, answer }),
-    })
-      .then((res) => res.json())
-      .then(() => {
-        setAnswersByQuestion((prev) => ({
-          ...prev,
-          [questionId]: [...(prev[questionId] || []), { username, answer }],
-        }));
-      })
-      .catch((err) => console.error("Failed to submit answer:", err));
+    try {
+      await fetch("http://localhost:8080/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, questionId, answer }),
+      });
+      setAnswersByQuestion((prev) => ({
+        ...prev,
+        [questionId]: [...(prev[questionId] || []), { username, answer }],
+      }));
+    } catch (err) {
+      console.error("Failed to submit answer:", err);
+    }
   };
 
   const handleLogout = () => {
-    window.location.href = "/"; // redirect to login page
+    window.location.href = "/"; // redirect to login
   };
 
   if (loading) return <p className="loading-text">Loading user info...</p>;
