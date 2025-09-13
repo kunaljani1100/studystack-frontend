@@ -117,3 +117,39 @@
 .error-text {
   color: red;
 }
+
+.add-user {
+  display: flex;
+  gap: 10px; /* space between input and button */
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.add-user-input {
+  flex: 1; /* makes input expand */
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.add-user-input:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 4px rgba(74, 144, 226, 0.4);
+}
+
+.add-user-button {
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+}
+
+.add-user-button:hover {
+  background-color: #357abd;
+}

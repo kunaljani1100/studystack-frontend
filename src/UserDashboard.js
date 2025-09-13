@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import './UserDashboard.css'; // Keep the same CSS file
+import './UserDashboard.css';
 
 function UserDashboard({ username }) {
   const [userInfo, setUserInfo] = useState(null);
@@ -8,10 +8,11 @@ function UserDashboard({ username }) {
   const [newQuestions, setNewQuestions] = useState({});
   const [newAnswers, setNewAnswers] = useState({});
   const [newGroupName, setNewGroupName] = useState("");
-  const [addUserInputs, setAddUserInputs] = useState({}); // 🔹 Store input per group
+  const [addUserInputs, setAddUserInputs] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fetch user info
   const fetchUserInfo = async () => {
     try {
       const res = await fetch("http://localhost:8080/users/get", {
@@ -20,7 +21,6 @@ function UserDashboard({ username }) {
         body: JSON.stringify({ username }),
       });
       const data = await res.json();
-
       const uniqueGroups = data.groups ? [...new Set(data.groups)] : [];
       setUserInfo({ ...data, groups: uniqueGroups });
       setLoading(false);
@@ -35,64 +35,82 @@ function UserDashboard({ username }) {
     fetchUserInfo();
   }, [username]);
 
+  // Fetch questions and answers for all groups
   useEffect(() => {
-    if (!userInfo || !userInfo.groups) return;
+    if (!userInfo?.groups?.length) return;
 
-    userInfo.groups.forEach((group) => {
-      const [_, groupId] = String(group).split("::");
-      fetchGroupData(groupId);
-    });
-  }, [userInfo]);
+    const fetchAllGroups = async () => {
+      try {
+        const results = await Promise.all(
+          userInfo.groups.map(async (groupKey) => {
+            const res = await fetch("http://localhost:8080/groups/questions/view", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ groupId: groupKey }),
+            });
+            const data = await res.json();
+            const questions = Array.isArray(data) ? data : data.questions || [];
 
-  const fetchGroupData = async (groupId) => {
-    try {
-      const res = await fetch("http://localhost:8080/groups/questions/view", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupId }),
-      });
-      const data = await res.json();
-      const questions = Array.isArray(data) ? data : data.questions || [];
-      setGroupQuestions((prev) => ({ ...prev, [groupId]: questions }));
+            let answersData = {};
+            if (questions.length > 0) {
+              const questionIds = questions.map((q) => q.questionId);
+              const ansRes = await fetch("http://localhost:8080/answers/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ questionIds }),
+              });
+              answersData = await ansRes.json();
+            }
 
-      if (questions.length > 0) {
-        const questionIds = questions.map((q) => q.questionId);
-        const ansRes = await fetch("http://localhost:8080/answers/batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questionIds }),
+            return { groupKey, questions, answersData };
+          })
+        );
+
+        const questionsState = {};
+        const answersState = {};
+        results.forEach(({ groupKey, questions, answersData }) => {
+          questionsState[groupKey] = questions;
+          Object.assign(answersState, answersData);
         });
-        const answersData = await ansRes.json();
-        setAnswersByQuestion((prev) => ({ ...prev, ...answersData }));
-      }
-    } catch (err) {
-      console.error("Failed to fetch questions or answers:", err);
-      setGroupQuestions((prev) => ({ ...prev, [groupId]: [] }));
-    }
-  };
 
-  const handleSubmitQuestion = async (groupId) => {
-    const question = newQuestions[groupId]?.trim();
+        setGroupQuestions(questionsState);
+        setAnswersByQuestion(answersState);
+      } catch (err) {
+        console.error("Failed to fetch groups/questions:", err);
+      }
+    };
+
+    fetchAllGroups();
+  }, [userInfo?.groups]);
+
+  // Submit new question
+  const handleSubmitQuestion = async (groupKey) => {
+    const question = newQuestions[groupKey]?.trim();
     if (!question) return;
 
     try {
       await fetch("http://localhost:8080/question", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, groupId, question }),
+        body: JSON.stringify({ username, groupId: groupKey, question }),
       });
-      setNewQuestions((prev) => ({ ...prev, [groupId]: "" }));
-      fetchGroupData(groupId);
+
+      // Optimistically update state
+      setGroupQuestions((prev) => ({
+        ...prev,
+        [groupKey]: [...(prev[groupKey] || []), { username, question, questionId: Date.now().toString() }],
+      }));
+      setNewQuestions((prev) => ({ ...prev, [groupKey]: "" }));
     } catch (err) {
       console.error("Failed to submit question:", err);
     }
   };
 
-  const handleSubmitAnswer = async (questionId) => {
+  // Submit new answer
+  const handleSubmitAnswer = async (questionId, groupKey) => {
     const answer = newAnswers[questionId]?.trim();
     if (!answer) return;
-
-    setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
+    console.log(questionId);
 
     try {
       await fetch("http://localhost:8080/answer", {
@@ -100,55 +118,61 @@ function UserDashboard({ username }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, questionId, answer }),
       });
+
       setAnswersByQuestion((prev) => ({
         ...prev,
         [questionId]: [...(prev[questionId] || []), { username, answer }],
       }));
+      setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
     } catch (err) {
       console.error("Failed to submit answer:", err);
     }
   };
 
+  // Create new group
   const handleCreateGroup = async () => {
     const groupName = newGroupName.trim();
     if (!groupName) return;
 
     try {
-      const res = await fetch("http://localhost:8080/groups/create", {
+      const createGroupResponse = await fetch("http://localhost:8080/groups/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ groupName }),
       });
-      const createdGroup = await res.json();
-      const groupId = createdGroup.groupId || createdGroup.id;
+      const data = await createGroupResponse.json();
+      const groupId = data.groupId;
+      const groupKey = groupId;
 
-      if (groupId) {
-        await fetch("http://localhost:8080/groups/users/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groupId, username }),
-        });
-      }
+      // Add current user to the group
+      await fetch("http://localhost:8080/groups/users/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId: groupKey, username }),
+      });
 
       setNewGroupName("");
-      await fetchUserInfo();
+      setUserInfo((prev) => ({
+        ...prev,
+        groups: [...(prev.groups || []), groupKey],
+      }));
     } catch (err) {
       console.error("Failed to create or join group:", err);
     }
   };
 
-  // 🔹 Add new user to a group
-  const handleAddUser = async (groupId) => {
-    const newUser = addUserInputs[groupId]?.trim();
+  // Add new user to a group
+  const handleAddUser = async (groupKey) => {
+    const newUser = addUserInputs[groupKey]?.trim();
     if (!newUser) return;
 
     try {
       await fetch("http://localhost:8080/groups/users/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupId, username: newUser }),
+        body: JSON.stringify({ groupId: groupKey, username: newUser }),
       });
-      setAddUserInputs((prev) => ({ ...prev, [groupId]: "" }));
+      setAddUserInputs((prev) => ({ ...prev, [groupKey]: "" }));
       alert(`User "${newUser}" added to group successfully.`);
     } catch (err) {
       console.error("Failed to add user:", err);
@@ -189,45 +213,53 @@ function UserDashboard({ username }) {
       </div>
 
       <div className="groups-container">
-        {userInfo.groups.map((group, idx) => {
-          const [groupName, groupId] = String(group).split("::");
-          const questions = groupQuestions[groupId] || [];
+        {userInfo.groups.map((groupKey) => {
+          const [groupName] = groupKey.split("::");
+          const questions = groupQuestions[groupKey] || [];
 
           return (
-            <div key={idx} className="group-card">
+            <div key={groupKey} className="group-card">
               <h2 className="group-title">{groupName}</h2>
 
-              {/* 🔹 Add User Section */}
+              {/* Add User Section */}
               <div className="add-user">
                 <input
                   type="text"
+                  className="input-text add-user-input"
                   placeholder="Enter username to add"
-                  value={addUserInputs[String(group)] || ""}
+                  value={addUserInputs[groupKey] || ""}
                   onChange={(e) =>
                     setAddUserInputs((prev) => ({
                       ...prev,
-                      [String(group)]: e.target.value,
+                      [groupKey]: e.target.value,
                     }))
                   }
                 />
-                <button onClick={() => handleAddUser(String(group))}>Add User</button>
+                <button
+                  className="add-user-button"
+                  onClick={() => handleAddUser(groupKey)}
+                >
+                  ➕ Add User
+                </button>
               </div>
 
+              {/* New Question Section */}
               <div className="new-question">
                 <input
                   type="text"
                   placeholder={`Ask a question in ${groupName}`}
-                  value={newQuestions[groupId] || ""}
+                  value={newQuestions[groupKey] || ""}
                   onChange={(e) =>
                     setNewQuestions((prev) => ({
                       ...prev,
-                      [groupId]: e.target.value,
+                      [groupKey]: e.target.value,
                     }))
                   }
                 />
-                <button onClick={() => handleSubmitQuestion(groupId)}>Submit</button>
+                <button onClick={() => handleSubmitQuestion(groupKey)}>Submit</button>
               </div>
 
+              {/* Questions List */}
               <div className="questions-list">
                 {questions.map((q) => (
                   <div key={q.questionId} className="question-card">
@@ -255,7 +287,9 @@ function UserDashboard({ username }) {
                           }))
                         }
                       />
-                      <button onClick={() => handleSubmitAnswer(q.questionId)}>Submit</button>
+                      <button onClick={() => handleSubmitAnswer(q.questionId, groupKey)}>
+                        Submit
+                      </button>
                     </div>
                   </div>
                 ))}
