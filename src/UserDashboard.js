@@ -113,15 +113,17 @@ function UserDashboard({ username }) {
     console.log(questionId);
 
     try {
-      await fetch("http://localhost:8080/answer", {
+      const result = await fetch("http://localhost:8080/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, questionId, answer }),
       });
 
+      const data = await result.json();
+      const accuracy = data.accuracy;
       setAnswersByQuestion((prev) => ({
         ...prev,
-        [questionId]: [...(prev[questionId] || []), { username, answer }],
+        [questionId]: [...(prev[questionId] || []), { username, answer, accuracy }],
       }));
       setNewAnswers((prev) => ({ ...prev, [questionId]: "" }));
     } catch (err) {
@@ -269,9 +271,13 @@ function UserDashboard({ username }) {
 
                     <ul className="answers-list">
                       {(answersByQuestion[q.questionId] || []).map((ans, i) => (
-                        <li key={i}>
-                          {ans.answer} — {ans.username}
-                        </li>
+                        <li key={i} className="answer-card">
+                        <p className="answer-text">{ans.answer}</p>
+                        <p className="answer-meta">
+                          <span className="answer-user">{ans.username}</span> — 
+                          <span className="answer-accuracy">Accuracy: {ans.accuracy}</span>
+                        </p>
+                      </li>
                       ))}
                     </ul>
 
