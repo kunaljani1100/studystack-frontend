@@ -272,9 +272,8 @@ function UserDashboard({ username }) {
                     <ul className="answers-list">
                       {(answersByQuestion[q.questionId] || []).map((ans, i) => (
                         <li key={i} className="answer-card">
-                        <p className="answer-text">{ans.answer}</p>
+                        <p className="answer-text">{ans.username}: {ans.answer}</p>
                         <p className="answer-meta">
-                          <span className="answer-user">{ans.username}</span> — 
                           <span className="answer-accuracy">Accuracy: {ans.accuracy}</span>
                         </p>
                       </li>
