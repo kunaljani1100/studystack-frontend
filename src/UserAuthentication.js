@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './UserAuthentication.css';
 import UserDashboard from './UserDashboard';
+import CreateNewUser from './CreateNewUser';
 
 function UserAuthentication() {
   const [username, setUsername] = useState('');
@@ -62,8 +63,8 @@ function UserAuthentication() {
 
         <div className="auth-or">----------------OR----------------</div>
 
-        <div className="auth-links">
-          <a href="/forgot-password">Forgot Password?</a>
+        <div>
+          <button onClick={CreateNewUser}>Create New User</button>
         </div>
       </div>
     </div>
