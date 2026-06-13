@@ -6,6 +6,8 @@ function CreateNewUser({ onBack }) {
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,6 +17,8 @@ function CreateNewUser({ onBack }) {
       middleName: middleName || '',
       lastName,
       phoneNumber,
+      username,
+      password,
       textingIndicator: true,
       emailIndicator: true,
     };
@@ -77,6 +81,24 @@ function CreateNewUser({ onBack }) {
               placeholder="Phone Number"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
