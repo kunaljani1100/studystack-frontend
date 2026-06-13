@@ -7,6 +7,7 @@ function UserAuthentication() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // prevent page reload
@@ -33,6 +34,10 @@ function UserAuthentication() {
 
   if (authenticated) {
     return <UserDashboard username={username} />;
+  }
+
+  if (showCreateUser) {
+    return <CreateNewUser onBack={() => setShowCreateUser(false)} />;
   }
 
   return (
@@ -64,7 +69,9 @@ function UserAuthentication() {
         <div className="auth-or">----------------OR----------------</div>
 
         <div>
-          <button onClick={CreateNewUser}>Create New User</button>
+          <button type="button" className="auth-submit" onClick={() => setShowCreateUser(true)}>
+            Create New User
+          </button>
         </div>
       </div>
     </div>
